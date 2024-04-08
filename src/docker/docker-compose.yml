@@ -1,0 +1,39 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 06665169
+      POSTGRES_DB: car_sale_db
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - host
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    container_name: redis_container
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    volumes:
+      - ../config/redis/redis.conf:/etc/redis/redis.conf
+      - redis:/etc/redis/redis.conf
+      - redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - host
+
+volumes:
+  postgres:
+  redis:
+
+networks:
+  host:
+    driver: bridge
