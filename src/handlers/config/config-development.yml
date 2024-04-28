@@ -1,0 +1,38 @@
+SERVER:
+  PORT: 4007
+  MODE: debug
+  CONTROLLER_PREFIX: /api/v1/service/commerce
+LOGGER:
+  FILE_PATH: ./logs/logs.log
+  ENCODING: json
+  LEVEL: debug
+  MAX_SIZE: 20
+  MAX_AGE: 5
+  MAX_BACKUPS: 6
+  COMPRESS: true
+  LOGGER: zap
+CORS:
+  ALLOW_ORIGINS: "*"
+MONGODB:
+  HOST: localhost
+  PORT: 27017
+  USER: postgres
+  PASSWORD: admin
+  DATABASE_NAME: commerce
+  SSL_MODE: disable
+  TIMEZONE: Asia/Tehran
+  MAX_IDLE_CONNECT: 10
+  MAX_OPEN_CONNECT: 100
+  CONNECT_MAX_LIFETIME: 5
+REDIS:
+  HOST: localhost
+  POST: 6379
+  PASSWORD: ""
+  DB: 0
+  DIAL_TIMEOUT: 5
+  READ_TIMEOUT: 5
+  WRITE_TIMEOUT: 5
+  IDLE_CHECK_FREQUENCY: 500
+  IDLE_TIMEOUT: 500
+  POOL_SIZE: 10
+  POOL_TIMEOUT: 15
