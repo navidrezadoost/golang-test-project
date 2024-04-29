@@ -17,6 +17,7 @@ type Config struct {
 	CORS    CorsConfig
 	MONGODB MongoDbConfig
 	REDIS   RedisConfig
+	SERVICE ServicesConfig `yaml:"SERVICES"`
 }
 
 // ServerConfig represents the configuration for the server.
@@ -36,6 +37,34 @@ type LoggerConfig struct {
 	MAX_BACKUPS int
 	COMPRESS    bool
 	LOGGER      string
+}
+
+// ServicesConfig represents the configuration for external services
+type ServicesConfig struct {
+	ProductService ProductServiceConfig `yaml:"PRODUCT_SERVICE"`
+	FileService    FileServiceConfig    `yaml:"FILE_SERVICE"`
+	ExportService  ExportServiceConfig  `yaml:"EXPORT_SERVICE"`
+}
+
+// ProductServiceConfig represents the configuration for the product service
+type ProductServiceConfig struct {
+	Port    int    `yaml:"PORT"`
+	BaseURL string `yaml:"BASE_URL"`
+	Path    string `yaml:"PATH"`
+}
+
+// FileServiceConfig represents the configuration for the file service
+type FileServiceConfig struct {
+	Port    int    `yaml:"PORT"`
+	BaseURL string `yaml:"BASE_URL"`
+	Path    string `yaml:"PATH"`
+}
+
+// ExportServiceConfig represents the configuration for the export service
+type ExportServiceConfig struct {
+	Port    int    `yaml:"PORT"`
+	BaseURL string `yaml:"BASE_URL"`
+	Path    string `yaml:"PATH"`
 }
 
 // CorsConfig represents the configuration for Cross-Origin Resource Sharing (CORS).

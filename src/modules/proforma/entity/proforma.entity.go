@@ -7,29 +7,24 @@ import (
 )
 
 type File struct {
-	Path    string `bson:"path"`
-	Type    string `bson:"type"`
-	Size    string `bson:"size"`
-	Caption string `bson:"size"`
+	DirectoryName string   `bson:"directoryName" json:"directoryName" binding:"required"`
+	Caption       string   `bson:"caption" json:"caption"`
+	FileIDs       []string `bson:"fileIDs" json:"fileIDs" binding:"required"`
 }
-
-const (
-	Draft string = "DRAFT"
-)
 
 // Proforma represents the schema for the "proformas" collection in MongoDB.
 type Proforma struct {
 	ID                          primitive.ObjectID   `bson:"_id,omitempty"` // MongoDB document ID
-	ProformaInvoiceNumber       string               `bson:"proformaInvoiceNumber" validate:"required"`
-	ProformaInvoiceDate         time.Time            `bson:"proformaInvoiceDate" validate:"required"`
-	ProformaInvoiceValidityDate time.Time            `bson:"proformaInvoiceValidityDate"`
+	ProformaInvoiceNumber       string               `bson:"proformaInvoiceNumber" binding:"required" validate:"required"`
+	ProformaInvoiceDate         time.Time            `bson:"proformaInvoiceDate" binding:"required" validate:"required"`
+	ProformaInvoiceValidityDate time.Time            `bson:"proformaInvoiceValidityDate" binding:"required"`
 	TypeOfProductionUnits       string               `bson:"typeOfProductionUnits" validate:"required"`
-	Buyer                       string               `bson:"buyer" validate:"required"`
-	Seller                      string               `bson:"seller" validate:"required"`
+	Buyer                       string               `bson:"buyer" binding:"required" validate:"required"`
+	Seller                      string               `bson:"seller" binding:"required" validate:"required"`
 	Currency                    string               `bson:"currency" validate:"required"`
-	OrderRegistrationMode       string               `bson:"orderRegistrationMode"`
-	CountryBeneficiary          string               `bson:"countryBeneficiary"`
-	CountryOfOrigin             string               `bson:"countryOfOrigin"`
+	OrderRegistrationMode       string               `bson:"orderRegistrationMode" binding:"required"`
+	CountryBeneficiary          string               `bson:"countryBeneficiary" binding:"required"`
+	CountryOfOrigin             string               `bson:"countryOfOrigin" binding:"required"`
 	ContractType                string               `bson:"contractType" validate:"required"`
 	LoadingPort                 string               `bson:"loadingPort" validate:"required"`
 	DischargePort               string               `bson:"dischargePort" validate:"required"`
@@ -41,8 +36,8 @@ type Proforma struct {
 	FileNumber                  int64                `bson:"fileNumber"`
 	Documents                   []File               `bson:"documents"`
 	Products                    []primitive.ObjectID `bson:"products"`
-	Status                      string               `bson:"status" default:"Draft" validate:"oneof=Draft"`
+	Status                      string               `bson:"status" default:"DRAFT" validate:"oneof=DRAFT READY_FOR_PROCESS"`
 	IsRemove                    bool                 `bson:"isRemove" default:"false"`
-	CreatedAt                   time.Time            `bson:"createdAt,omitempty,default"`
-	UpdatedAt                   time.Time            `bson:"updatedAt,omitempty,default"`
+	CreatedAt                   time.Time            `bson:"createdAt,omitempty"`
+	UpdatedAt                   time.Time            `bson:"updatedAt,omitempty"`
 }

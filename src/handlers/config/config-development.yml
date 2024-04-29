@@ -36,3 +36,16 @@ REDIS:
   IDLE_TIMEOUT: 500
   POOL_SIZE: 10
   POOL_TIMEOUT: 15
+SERVICES:
+  PRODUCT_SERVICE:
+    PORT: 4005
+    BASE_URL: "http://localhost:"
+    PATH: /api/v1/service
+  FILE_SERVICE:
+    PORT: 4008
+    BASE_URL: "http://localhost:"
+    PATH: /api/v1/service
+  EXPORT_SERVICE:
+    PORT: 4009
+    BASE_URL: "http://localhost:"
+    PATH: /api/v1/service

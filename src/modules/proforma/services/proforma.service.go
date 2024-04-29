@@ -1,8 +1,12 @@
 package services
 
 import (
+	"commerce/common"
+	"commerce/handlers/enum"
 	"commerce/handlers/utils"
 	"commerce/modules/proforma/entity"
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"time"
 
@@ -12,18 +16,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type personData struct {
-	FirstName   string `json:"firstName"  binding:"required,min=2,max=20,alpha"`
-	LastName    string `json:"lastName"  binding:"required"`
-	PhoneNumber string `json:"phoneNumber"  binding:"required,mobile"`
-}
-
 type ProformaService struct {
-	Collection *mongo.Collection
+	Collection  *mongo.Collection
+	HTTPService *common.HTTPClient
 }
 
 func ProformaServiceClass(collection *mongo.Collection) *ProformaService {
-	return &ProformaService{Collection: collection}
+	httpClient := common.NewHTTPClient()
+	return &ProformaService{Collection: collection, HTTPService: httpClient}
 }
 
 func (h *ProformaService) FindAllProformasService(context *gin.Context) {
@@ -49,32 +49,28 @@ func (h *ProformaService) FindAllProformasService(context *gin.Context) {
 }
 
 func (h *ProformaService) FindByIdProformaService(context *gin.Context) {
-	// Get the proforma ID from the request params
 	id := context.Param("id")
 
-	// Perform a find operation to retrieve the proforma by its ID
-	var proforma bson.M
-	if err := h.Collection.FindOne(context, bson.M{"_id": id}).Decode(&proforma); err != nil {
-		if err == mongo.ErrNoDocuments {
-			context.JSON(http.StatusNotFound, gin.H{"error": "Proforma not found"})
-			return
-		}
-		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Invalid proforma ID"})
 		return
 	}
-
-	// Return the proforma as JSON
-	context.JSON(http.StatusOK, proforma)
+	// Find the inserted document by _id
+	filter := bson.M{"_id": objectID} // Assuming ID is already set by MongoDB
+	result := h.Collection.FindOne(context, filter)
+	if result.Err() != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created document"})
+		return
+	}
+	// Return response with proformaData as JSON
+	context.JSON(http.StatusOK, utils.ResponseCorrect(utils.DecodeSingleDocument(context, result), http.StatusOK, "loggerID", "success", "Proforma Essentials successfully"))
 }
 
-func (h *ProformaService) UpdateProformaService(context *gin.Context) {
-	context.JSON(http.StatusOK, gin.H{})
-}
-
-func (h *ProformaService) CreateEssentialsProformaService(context *gin.Context) {
+func (h *ProformaService) InitEssentialsProformaService(context *gin.Context) {
 	var proforma entity.Proforma
 
-	// Bind JSON body to Proforma struct
+	// Bind JSON body to Pro forma struct
 	if err := context.BindJSON(&proforma); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -82,38 +78,82 @@ func (h *ProformaService) CreateEssentialsProformaService(context *gin.Context) 
 
 	// Set default values
 	proforma.CreatedAt = time.Now()
-	proforma.UpdatedAt = time.Now()
+	proforma.Documents = []entity.File{}
+	proforma.UpdatedAt = proforma.CreatedAt // UpdatedAt should be the same as CreatedAt initially
+	proforma.Status = enum.Draft            // UpdatedAt should be the same as CreatedAt initially
 
 	// Insert Proforma into MongoDB collection
-	doc, err := h.Collection.InsertOne(context, proforma)
+	req, err := h.Collection.InsertOne(context, proforma)
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Find the inserted document by _id
-	filter := bson.M{"_id": doc.InsertedID} // Assuming ID is the unique identifier of the document
-	cursor, err := h.Collection.Find(context, filter)
-	if err != nil {
+	filter := bson.M{"_id": req.InsertedID} // Assuming ID is already set by MongoDB
+	result := h.Collection.FindOne(context, filter)
+	if result.Err() != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created document"})
 		return
 	}
 
-	// Extract the first document from the cursor
-	if cursor.Next(context) {
-		var result bson.M
-		if err := cursor.Decode(&result); err != nil {
-			context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode document"})
-			return
-		}
-
-		// Return response with proformaData
-		context.JSON(http.StatusOK, utils.ResponseCorrect(result, http.StatusOK, "loggerID", "success", "Proforma Essentials successfully"))
-	} else {
-		context.JSON(http.StatusInternalServerError, gin.H{"error": "No document found"})
+	// Decode the document to a map
+	var proformaMap map[string]interface{}
+	if err := result.Decode(&proformaMap); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode document"})
+		return
 	}
 
-	cursor.Close(context)
+	// Return response with proformaData as JSON
+	context.JSON(http.StatusOK, utils.ResponseCorrect(proformaMap, http.StatusOK, "loggerID", "success", "Proforma Essentials successfully"))
+}
+
+func (h *ProformaService) UpdateEssentialsProformaService(context *gin.Context) {
+	// Get the proforma ID from the URL parameter
+	proformaID := context.Param("id")
+
+	// Parse the proforma ID into an ObjectID
+	objID, err := primitive.ObjectIDFromHex(proformaID)
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": "Invalid proforma ID"})
+		return
+	}
+
+	// Parse the request body into a map or a struct
+	var updateData map[string]interface{}
+	if err := context.BindJSON(&updateData); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert the map to BSON format
+	update := bson.M{"$set": updateData}
+
+	// Perform the update operation in MongoDB
+	filter := bson.M{"_id": objID}
+	_, err = h.Collection.UpdateOne(context, filter, update)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update proforma"})
+		return
+	}
+
+	// Find the inserted document by _id
+	result := h.Collection.FindOne(context, filter)
+	if result.Err() != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created document"})
+		return
+	}
+
+	// Decode the document to a map
+	var proformaMap map[string]interface{}
+	if err := result.Decode(&proformaMap); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode document"})
+		return
+	}
+
+	// Return the updated proforma in the response
+	context.JSON(http.StatusOK, utils.ResponseCorrect(proformaMap, http.StatusOK, "loggerID", "success", "Proforma updated successfully"))
+
 }
 
 func (h *ProformaService) AddProductProformaService(context *gin.Context) {
@@ -121,7 +161,43 @@ func (h *ProformaService) AddProductProformaService(context *gin.Context) {
 }
 
 func (h *ProformaService) UploadDocumentProformaService(context *gin.Context) {
+	// Get proforma ID from URL parameter
+	proformaID := context.Param("id")
 
+	// Parse proforma ID into ObjectID
+	err, objID := utils.ConvertToPrimitiveObjectId(context, proformaID)
+
+	// Bind the request body to a file object
+	var file entity.File
+	if err := context.BindJSON(&file); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Define the filter to find the proforma document
+	filter := bson.M{"_id": objID}
+	// Execute the update operation
+	_, err = h.Collection.UpdateOne(context, filter, bson.M{"$push": bson.M{"documents": file}})
+	if err != nil {
+		fmt.Println(err)
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update proforma"})
+		return
+	}
+	// Assuming ID is already set by MongoDB
+	result := h.Collection.FindOne(context, filter)
+	if result.Err() != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve created document"})
+		return
+	}
+
+	// Decode the document to a map
+	var proformaMap map[string]interface{}
+	if err := result.Decode(&proformaMap); err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode document"})
+		return
+	}
+
+	context.JSON(http.StatusOK, utils.ResponseCorrect(proformaMap, http.StatusOK, "loggerID", "success", "Document uploaded successfully"))
 }
 
 func (h *ProformaService) FinanceProformaService(context *gin.Context) {
@@ -131,39 +207,5 @@ func (h *ProformaService) FinanceProformaService(context *gin.Context) {
 func (h *ProformaService) RemoveProformaService(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{
 		"queryBinder1": context.Query("username"),
-	})
-}
-
-func (h *ProformaService) BindQueryArray(context *gin.Context) {
-	context.JSON(http.StatusOK, gin.H{
-		"queryBinderArray1": context.QueryArray("username"),
-	})
-}
-
-func (h *ProformaService) BindUri(context *gin.Context) {
-	context.JSON(http.StatusOK, gin.H{
-		"uriBinderArray1": context.Param("name"),
-	})
-}
-
-func (h *ProformaService) BindBForm(context *gin.Context) {
-	p := personData{}
-	err := context.Bind(&p)
-	if err != nil {
-		return
-	}
-	context.JSON(http.StatusOK, gin.H{
-		"formBinder1": p,
-	})
-}
-
-func (h *ProformaService) BindFile(context *gin.Context) {
-	file, _ := context.FormFile("file")
-	err := context.SaveUploadedFile(file, "file")
-	if err != nil {
-		return
-	}
-	context.JSON(http.StatusOK, gin.H{
-		"fileBinder1": file.Filename,
 	})
 }

@@ -43,3 +43,32 @@ func ResponseCorrect(data interface{}, code int, loggerID string, status string,
 
 	return response
 }
+
+func ResponseInCorrect(data interface{}, code int, loggerID string, status string, message string, location string) ResponseCorrectInterface {
+	response := ResponseCorrectInterface{
+		Status: status,
+		Code:   code,
+		Metadata: Metadata{
+			Version:   "1.0.0", // Hardcoded version since there's no package.json in Go
+			LogID:     loggerID,
+			Timestamp: time.Now(),
+		},
+	}
+
+	// Check the type of data before type assertion
+	switch d := data.(type) {
+	case string:
+		// If data is a string, set it as the error message
+		response.Error = map[string]interface{}{"value": d,
+			"message": message, "location": location}
+	case map[string]interface{}:
+		// If data is already a map[string]interface{}, set it as the error object
+		response.Error = d
+	default:
+		// If data is of an unexpected type, set an error message indicating the unexpected data type
+		response.Error = map[string]interface{}{"value": "Unexpected data type",
+			"message": message, "location": location}
+	}
+
+	return response
+}
